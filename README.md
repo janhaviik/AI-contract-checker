@@ -43,7 +43,7 @@ The diff engine uses the **Longest Common Subsequence (LCS)** dynamic programmin
 
 ## Author
 
-Janhavi S. Kulkarni — [github.com/YOUR-USERNAME](https://github.com/YOUR-USERNAME)
+Janhavi S. Kulkarni — [github.com/YOUR-USERNAME](https://github.com/janhaviik )
 
 ## License
 
