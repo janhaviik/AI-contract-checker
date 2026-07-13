@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contract Diff Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #F7F8FA;
+      --surface: #FFFFFF;
+      --border: #DDE1E7;
+      --text: #1A1D23;
+      --muted: #6B7280;
+      --accent: #1A3FCB;
+      --accent-light: #EEF2FF;
+      --add-bg: #ECFDF5;
+      --add-text: #065F46;
+      --add-bar: #10B981;
+      --del-bg: #FEF2F2;
+      --del-text: #991B1B;
+      --del-bar: #EF4444;
+      --same-text: #374151;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .logo-icon {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .logo-icon svg { width: 16px; height: 16px; fill: white; }
+
+    .badge {
+      font-size: 11px;
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    /* MAIN */
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 4px;
+    }
+
+    .page-sub {
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* INPUT GRID */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .input-card-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+    }
+
+    .version-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+    }
+
+    .v1 { background: var(--del-bar); }
+    .v2 { background: var(--add-bar); }
+
+    .input-card-header span {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    textarea {
+      width: 100%;
+      height: 220px;
+      padding: 14px;
+      border: none;
+      outline: none;
+      resize: vertical;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    textarea::placeholder { color: #B0B7C3; }
+
+    /* ACTIONS */
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 1.5rem;
+      align-items: center;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary:hover { opacity: 0.88; }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-secondary:hover { background: var(--bg); }
+
+    /* STATS BAR */
+    .stats-bar {
+      display: none;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stats-bar.visible { display: flex; }
+
+    .stat-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .stat-chip.added   { background: var(--add-bg); color: var(--add-text); }
+    .stat-chip.removed { background: var(--del-bg); color: var(--del-text); }
+    .stat-chip.total   { background: var(--accent-light); color: var(--accent); }
+
+    /* DIFF OUTPUT */
+    .diff-card {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .diff-card.visible { display: block; }
+
+    .diff-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .diff-header-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diff-legend {
+      display: flex;
+      gap: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+
+    .legend-dot.add { background: var(--add-bar); }
+    .legend-dot.del { background: var(--del-bar); }
+
+    .diff-body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      overflow-x: auto;
+    }
+
+    .diff-line {
+      display: flex;
+      align-items: flex-start;
+      padding: 2px 0;
+      border-left: 3px solid transparent;
+    }
+
+    .diff-line.added {
+      background: var(--add-bg);
+      border-left-color: var(--add-bar);
+    }
+
+    .diff-line.removed {
+      background: var(--del-bg);
+      border-left-color: var(--del-bar);
+    }
+
+    .line-num {
+      min-width: 46px;
+      padding: 0 10px;
+      text-align: right;
+      color: #B0B7C3;
+      font-size: 11px;
+      user-select: none;
+      padding-top: 1px;
+    }
+
+    .line-prefix {
+      min-width: 20px;
+      font-weight: 700;
+      padding-top: 1px;
+    }
+
+    .diff-line.added   .line-prefix { color: var(--add-bar); }
+    .diff-line.removed .line-prefix { color: var(--del-bar); }
+    .diff-line.same    .line-prefix { color: transparent; }
+
+    .line-text {
+      flex: 1;
+      padding: 0 12px 0 4px;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .diff-line.added   .line-text { color: var(--add-text); }
+    .diff-line.removed .line-text { color: var(--del-text); }
+    .diff-line.same    .line-text { color: var(--same-text); }
+
+    .empty-state {
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .empty-icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .empty-state p { font-size: 14px; }
+
+    /* NO CHANGES */
+    .no-changes {
+      padding: 2rem;
+      text-align: center;
+      color: var(--add-text);
+      background: var(--add-bg);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    @media (max-width: 680px) {
+      .input-grid { grid-template-columns: 1fr; }
+      .diff-legend { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1H8v-1zm0 3h8v1H8v-1zm0-6h3v1H8v-1z"/>
+      </svg>
+    </div>
+    ContractDiff
+  </div>
+  <span class="badge">Open Source</span>
+</header>
+
+<main>
+  <div class="page-title">Contract Version Comparison</div>
+  <div class="page-sub">Paste two versions of a contract to see exactly what changed — added, removed, or kept.</div>
+
+  <div class="input-grid">
+    <div class="input-card">
+      <div class="input-card-header">
+        <div class="version-dot v1"></div>
+        <span>Version 1 — Original</span>
+      </div>
+      <textarea id="v1" placeholder="Paste the original contract text here...
+
+Example:
+This agreement is entered into on January 1, 2024.
+Payment is due within 30 days of invoice.
+Either party may terminate with 60 days notice."></textarea>
+    </div>
+
+    <div class="input-card">
+      <div class="input-card-header">
+        <div class="version-dot v2"></div>
+        <span>Version 2 — Revised</span>
+      </div>
+      <textarea id="v2" placeholder="Paste the revised contract text here...
+
+Example:
+This agreement is entered into on March 15, 2024.
+Payment is due within 15 days of invoice.
+Either party may terminate with 30 days notice.
+Late payments attract a 2% monthly interest charge."></textarea>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" onclick="runDiff()">
+      <svg width="14" height="14" fill="white" viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+      Compare Contracts
+    </button>
+    <button class="btn-secondary" onclick="clearAll()">Clear</button>
+  </div>
+
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-chip added" id="statAdded"></div>
+    <div class="stat-chip removed" id="statRemoved"></div>
+    <div class="stat-chip total" id="statTotal"></div>
+  </div>
+
+  <div class="diff-card" id="diffCard">
+    <div class="diff-header">
+      <div class="diff-header-title">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Diff Result
+      </div>
+      <div class="diff-legend">
+        <div class="legend-item"><div class="legend-dot add"></div> Added</div>
+        <div class="legend-item"><div class="legend-dot del"></div> Removed</div>
+      </div>
+    </div>
+    <div class="diff-body" id="diffBody"></div>
+  </div>
+</main>
+
+<script>
+  // LCS-based diff algorithm
+  function lcs(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 1; i <= m; i++)
+      for (let j = 1; j <= n; j++)
+        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    return dp;
+  }
+
+  function buildDiff(a, b) {
+    const dp = lcs(a, b);
+    const result = [];
+    let i = a.length, j = b.length;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+        result.unshift({ type: 'same', text: a[i-1] });
+        i--; j--;
+      } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+        result.unshift({ type: 'added', text: b[j-1] });
+        j--;
+      } else {
+        result.unshift({ type: 'removed', text: a[i-1] });
+        i--;
+      }
+    }
+    return result;
+  }
+
+  function runDiff() {
+    const v1 = document.getElementById('v1').value.trim();
+    const v2 = document.getElementById('v2').value.trim();
+
+    if (!v1 || !v2) {
+      alert('Please paste text in both fields before comparing.');
+      return;
+    }
+
+    const linesA = v1.split('\n');
+    const linesB = v2.split('\n');
+    const diff = buildDiff(linesA, linesB);
+
+    const diffBody = document.getElementById('diffBody');
+    const statsBar = document.getElementById('statsBar');
+    const diffCard = document.getElementById('diffCard');
+
+    diffBody.innerHTML = '';
+
+    if (diff.every(d => d.type === 'same')) {
+      diffBody.innerHTML = '<div class="no-changes">✓ No changes found — the two contracts are identical.</div>';
+      statsBar.classList.remove('visible');
+      diffCard.classList.add('visible');
+      return;
+    }
+
+    let added = 0, removed = 0, lineNum = 0;
+
+    diff.forEach(entry => {
+      if (entry.type === 'same') lineNum++;
+      if (entry.type === 'added') { added++; lineNum++; }
+      if (entry.type === 'removed') removed++;
+
+      const row = document.createElement('div');
+      row.className = `diff-line ${entry.type}`;
+
+      const numEl = document.createElement('div');
+      numEl.className = 'line-num';
+      numEl.textContent = entry.type !== 'removed' ? lineNum : '';
+
+      const prefix = document.createElement('div');
+      prefix.className = 'line-prefix';
+      prefix.textContent = entry.type === 'added' ? '+' : entry.type === 'removed' ? '−' : ' ';
+
+      const text = document.createElement('div');
+      text.className = 'line-text';
+      text.textContent = entry.text || ' ';
+
+      row.appendChild(numEl);
+      row.appendChild(prefix);
+      row.appendChild(text);
+      diffBody.appendChild(row);
+    });
+
+    // Stats
+    document.getElementById('statAdded').textContent   = `+ ${added} line${added !== 1 ? 's' : ''} added`;
+    document.getElementById('statRemoved').textContent = `− ${removed} line${removed !== 1 ? 's' : ''} removed`;
+    document.getElementById('statTotal').textContent   = `${diff.length} lines compared`;
+
+    statsBar.classList.add('visible');
+    diffCard.classList.add('visible');
+    diffCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function clearAll() {
+    document.getElementById('v1').value = '';
+    document.getElementById('v2').value = '';
+    document.getElementById('diffBody').innerHTML = '';
+    document.getElementById('statsBar').classList.remove('visible');
+    document.getElementById('diffCard').classList.remove('visible');
+  }
+</script>
+
+</body>
+</html>
