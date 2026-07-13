@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ContractDiff — PDF Contract Comparison</title>
+  <title>ContractDiff — PDF Side-by-Side Comparison</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #F7F8FA;
+      --bg: #F0F2F5;
       --surface: #FFFFFF;
       --border: #DDE1E7;
       --text: #1A1D23;
@@ -19,14 +19,20 @@
       --add-bg: #ECFDF5;
       --add-text: #065F46;
       --add-bar: #10B981;
-      --add-word: #BBF7D0;
+      --add-word: #6EE7B7;
       --del-bg: #FEF2F2;
       --del-text: #991B1B;
       --del-bar: #EF4444;
-      --del-word: #FECACA;
+      --del-word: #FCA5A5;
+      --mod-bg: #FFFBEB;
+      --mod-text: #78350F;
+      --mod-bar: #F59E0B;
+      --mod-word-del: #FDE68A;
+      --mod-word-add: #A7F3D0;
       --same-text: #374151;
-      --radius: 8px;
-      --shadow: 0 1px 3px rgba(0,0,0,0.08);
+      --same-bg: #FFFFFF;
+      --radius: 10px;
+      --shadow: 0 1px 4px rgba(0,0,0,0.07);
     }
 
     body {
@@ -36,369 +42,287 @@
       min-height: 100vh;
     }
 
+    /* ── HEADER ── */
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 0 2rem;
+      padding: 0 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      height: 60px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      height: 56px;
+      position: sticky; top: 0; z-index: 200;
+      box-shadow: var(--shadow);
     }
 
     .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 700;
-      font-size: 1rem;
-      letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 15px; letter-spacing: -0.02em;
     }
 
     .logo-icon {
-      width: 28px; height: 28px;
-      background: var(--accent);
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 14px; font-weight: 800;
+      width: 30px; height: 30px; background: var(--accent);
+      border-radius: 7px; display: flex; align-items: center;
+      justify-content: center; color: white; font-size: 15px; font-weight: 900;
     }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
 
     .badge {
-      font-size: 11px;
-      background: var(--accent-light);
-      color: var(--accent);
-      padding: 2px 8px;
-      border-radius: 20px;
-      font-weight: 600;
+      font-size: 11px; background: var(--accent-light);
+      color: var(--accent); padding: 3px 10px;
+      border-radius: 20px; font-weight: 600;
     }
 
-    main { max-width: 1280px; margin: 0 auto; padding: 2rem; }
+    /* ── UPLOAD SCREEN ── */
+    #uploadScreen { max-width: 860px; margin: 0 auto; padding: 2.5rem 1.5rem; }
 
     .page-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      margin-bottom: 4px;
+      font-size: 1.6rem; font-weight: 800;
+      letter-spacing: -0.03em; margin-bottom: 6px;
     }
 
-    .page-sub {
-      color: var(--muted);
-      font-size: 0.875rem;
-      margin-bottom: 1.75rem;
-    }
+    .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 2rem; }
 
-    /* UPLOAD ZONE */
-    .upload-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
 
     .upload-zone {
       background: var(--surface);
       border: 2px dashed var(--border);
       border-radius: var(--radius);
-      padding: 2rem;
+      padding: 2.5rem 1.5rem;
       text-align: center;
       cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
+      transition: all 0.2s;
       position: relative;
     }
 
-    .upload-zone:hover, .upload-zone.drag-over {
-      border-color: var(--accent);
-      background: var(--accent-light);
-    }
+    .upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+    .upload-zone.drag-over { border-color: var(--accent); background: var(--accent-light); }
 
     .upload-zone.has-file {
-      border-style: solid;
-      border-color: var(--add-bar);
-      background: var(--add-bg);
+      border-style: solid; border-color: var(--add-bar); background: var(--add-bg);
     }
 
     .upload-zone input[type="file"] {
-      position: absolute; inset: 0;
-      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
     }
 
-    .upload-icon { font-size: 2rem; margin-bottom: 10px; }
-
-    .upload-label {
-      font-weight: 600;
-      font-size: 14px;
-      color: var(--text);
-      margin-bottom: 4px;
+    .v-pill {
+      display: inline-block; font-size: 10px; font-weight: 800;
+      padding: 3px 10px; border-radius: 20px; margin-bottom: 14px;
+      letter-spacing: 0.05em; text-transform: uppercase;
     }
 
+    .v1-pill { background: #FEE2E2; color: #991B1B; }
+    .v2-pill { background: #D1FAE5; color: #065F46; }
+
+    .upload-icon { font-size: 2.2rem; margin-bottom: 10px; }
+    .upload-label { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
     .upload-sub { font-size: 12px; color: var(--muted); }
+    .file-name { font-size: 13px; font-weight: 600; color: var(--add-text); margin-top: 8px; word-break: break-all; }
 
-    .upload-version {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 10px;
-      border-radius: 20px;
-      margin-bottom: 12px;
-    }
-
-    .v1-badge { background: #FEE2E2; color: #991B1B; }
-    .v2-badge { background: #D1FAE5; color: #065F46; }
-
-    .file-name {
-      display: none;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--add-text);
-      margin-top: 8px;
-      word-break: break-all;
-    }
-
-    .upload-zone.has-file .file-name { display: block; }
-    .upload-zone.has-file .upload-icon-wrap { display: none; }
-
-    .check-icon { font-size: 2rem; margin-bottom: 8px; }
-
-    /* ACTIONS */
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 1.5rem;
-      align-items: center;
-    }
+    .actions { display: flex; gap: 10px; align-items: center; }
 
     .btn-primary {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 11px 24px;
-      border-radius: var(--radius);
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      background: var(--accent); color: white; border: none;
+      padding: 11px 26px; border-radius: var(--radius);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s; display: flex; align-items: center; gap: 8px;
     }
-
-    .btn-primary:hover { opacity: 0.88; }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary:hover { opacity: 0.87; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .btn-secondary {
-      background: var(--surface);
-      color: var(--muted);
-      border: 1px solid var(--border);
-      padding: 11px 18px;
-      border-radius: var(--radius);
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
+      background: var(--surface); color: var(--muted);
+      border: 1px solid var(--border); padding: 11px 18px;
+      border-radius: var(--radius); font-size: 14px;
+      font-weight: 500; cursor: pointer;
     }
-
     .btn-secondary:hover { background: var(--bg); }
 
-    /* LOADING */
-    .loader {
-      display: none;
-      align-items: center;
-      gap: 10px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
+    .loader { display: none; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
     .loader.visible { display: flex; }
-
     .spinner {
-      width: 18px; height: 18px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
+      width: 18px; height: 18px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* STATS */
-    .stats-bar {
-      display: none;
-      gap: 10px;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-      align-items: center;
+    .error-msg {
+      margin-top: 1rem; padding: 12px 16px;
+      background: var(--del-bg); color: var(--del-text);
+      border-radius: var(--radius); font-size: 14px;
     }
 
-    .stats-bar.visible { display: flex; }
+    /* ── DIFF SCREEN ── */
+    #diffScreen { display: none; height: calc(100vh - 56px); flex-direction: column; }
+    #diffScreen.visible { display: flex; }
 
-    .stat-chip {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .stat-chip.added   { background: var(--add-bg); color: var(--add-text); }
-    .stat-chip.removed { background: var(--del-bg); color: var(--del-text); }
-    .stat-chip.changed { background: #FEF3C7; color: #92400E; }
-    .stat-chip.total   { background: var(--accent-light); color: var(--accent); }
-
-    /* DIFF CARD */
-    .diff-card {
-      display: none;
+    /* TOP BAR */
+    .diff-topbar {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .diff-card.visible { display: block; }
-
-    .diff-header {
-      padding: 12px 16px;
       border-bottom: 1px solid var(--border);
-      background: var(--bg);
+      padding: 10px 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    .diff-header-left {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--muted);
+    .stats-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .stat-pill {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 11px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
     }
 
-    .diff-legend {
-      display: flex;
-      gap: 16px;
+    .stat-pill.added   { background: var(--add-bg);  color: var(--add-text); }
+    .stat-pill.removed { background: var(--del-bg);  color: var(--del-text); }
+    .stat-pill.changed { background: var(--mod-bg);  color: var(--mod-text); }
+    .stat-pill.same    { background: var(--bg);      color: var(--muted); }
+
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+    .legend { display: flex; gap: 12px; align-items: center; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+    /* COLUMN HEADERS */
+    .col-headers {
+      display: grid; grid-template-columns: 44px 1fr 44px 1fr;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
     }
 
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: var(--muted);
+    .col-header {
+      padding: 8px 14px;
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      display: flex; align-items: center; gap: 8px;
     }
 
-    .legend-swatch {
-      width: 12px; height: 12px;
-      border-radius: 2px;
-    }
+    .col-header.v1 { color: var(--del-text); border-right: 1px solid var(--border); grid-column: 1 / 3; }
+    .col-header.v2 { color: var(--add-text); grid-column: 3 / 5; }
 
-    /* DIFF LINES */
+    .col-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* DIFF BODY */
     .diff-body {
+      flex: 1;
+      overflow-y: auto;
       font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-      font-size: 13px;
-      line-height: 1.75;
+      font-size: 12.5px;
+      line-height: 1.65;
     }
 
-    .diff-section-label {
-      padding: 4px 16px;
-      font-size: 11px;
+    /* EACH ROW = 4 cols: linenum-left | text-left | linenum-right | text-right */
+    .diff-row {
+      display: grid;
+      grid-template-columns: 44px 1fr 44px 1fr;
+      border-bottom: 1px solid #F3F4F6;
+      min-height: 26px;
+    }
+
+    .diff-row:hover { filter: brightness(0.97); }
+
+    .cell-num {
+      padding: 3px 8px; text-align: right;
+      font-size: 11px; color: #C4C9D4;
+      user-select: none; flex-shrink: 0;
+      display: flex; align-items: flex-start;
+      justify-content: flex-end; padding-top: 5px;
+    }
+
+    .cell-text {
+      padding: 3px 12px 3px 8px;
+      word-break: break-word;
+      white-space: pre-wrap;
+      display: flex; align-items: flex-start;
+    }
+
+    /* LEFT SIDE styles */
+    .left-num  { border-right: 1px solid var(--border); }
+    .left-text { border-right: 3px solid transparent; }
+
+    /* RIGHT SIDE styles */
+    .right-num { border-left: 1px solid var(--border); }
+    .right-text { border-left: 3px solid transparent; }
+
+    /* SAME */
+    .row-same .left-text,
+    .row-same .right-text { background: var(--same-bg); color: var(--same-text); }
+
+    /* ADDED — right side only */
+    .row-added .left-text  { background: #FAFAFA; }
+    .row-added .left-num   { background: #FAFAFA; }
+    .row-added .right-text { background: var(--add-bg); color: var(--add-text); border-left-color: var(--add-bar); }
+    .row-added .right-num  { background: var(--add-bg); }
+
+    /* REMOVED — left side only */
+    .row-removed .left-text  { background: var(--del-bg); color: var(--del-text); border-right-color: var(--del-bar); }
+    .row-removed .left-num   { background: var(--del-bg); }
+    .row-removed .right-text { background: #FAFAFA; }
+    .row-removed .right-num  { background: #FAFAFA; }
+
+    /* CHANGED — both sides */
+    .row-changed .left-text  { background: var(--del-bg); color: var(--del-text); border-right-color: var(--del-bar); }
+    .row-changed .left-num   { background: var(--del-bg); }
+    .row-changed .right-text { background: var(--add-bg); color: var(--add-text); border-left-color: var(--add-bar); }
+    .row-changed .right-num  { background: var(--add-bg); }
+
+    /* WORD HIGHLIGHTS */
+    .w-del {
+      background: var(--del-word);
+      border-radius: 3px;
+      padding: 0 2px;
+      text-decoration: line-through;
+      text-decoration-color: #DC2626;
+    }
+
+    .w-add {
+      background: var(--add-word);
+      border-radius: 3px;
+      padding: 0 2px;
       font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--muted);
-      background: var(--bg);
+    }
+
+    /* SECTION DIVIDER — skip lines in large same blocks */
+    .diff-row.divider {
+      background: #F9FAFB;
       border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
     }
 
-    .diff-line {
-      display: flex;
-      align-items: flex-start;
-      border-left: 3px solid transparent;
-      min-height: 28px;
-    }
-
-    .diff-line.added   { background: var(--add-bg); border-left-color: var(--add-bar); }
-    .diff-line.removed { background: var(--del-bg); border-left-color: var(--del-bar); }
-    .diff-line.changed-old { background: var(--del-bg); border-left-color: var(--del-bar); }
-    .diff-line.changed-new { background: var(--add-bg); border-left-color: var(--add-bar); }
-    .diff-line.same    { background: transparent; }
-
-    .line-num {
-      min-width: 44px;
-      padding: 4px 10px;
-      text-align: right;
-      color: #C4C9D4;
+    .divider-cell {
+      grid-column: 1 / 5;
+      padding: 5px 14px;
       font-size: 11px;
-      user-select: none;
-      flex-shrink: 0;
-      padding-top: 5px;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      display: flex; align-items: center; gap: 6px;
     }
 
-    .line-prefix {
-      min-width: 18px;
-      font-weight: 700;
-      padding-top: 4px;
-      flex-shrink: 0;
+    .divider-cell::before, .divider-cell::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
     }
 
-    .diff-line.added        .line-prefix { color: var(--add-bar); }
-    .diff-line.removed      .line-prefix { color: var(--del-bar); }
-    .diff-line.changed-old  .line-prefix { color: var(--del-bar); }
-    .diff-line.changed-new  .line-prefix { color: var(--add-bar); }
-    .diff-line.same         .line-prefix { color: transparent; }
-
-    .line-text {
-      flex: 1;
-      padding: 4px 14px 4px 4px;
-      word-break: break-word;
-      white-space: pre-wrap;
-    }
-
-    .diff-line.added        .line-text { color: var(--add-text); }
-    .diff-line.removed      .line-text { color: var(--del-text); }
-    .diff-line.changed-old  .line-text { color: var(--del-text); }
-    .diff-line.changed-new  .line-text { color: var(--add-text); }
-    .diff-line.same         .line-text { color: var(--same-text); }
-
-    /* WORD-LEVEL HIGHLIGHTS */
-    .word-del {
-      background: var(--del-word);
-      border-radius: 2px;
-      padding: 1px 2px;
-      text-decoration: line-through;
-      text-decoration-color: var(--del-bar);
-    }
-
-    .word-add {
-      background: var(--add-word);
-      border-radius: 2px;
-      padding: 1px 2px;
-      font-weight: 600;
-    }
-
+    /* NO CHANGES */
     .no-changes {
-      padding: 2.5rem;
-      text-align: center;
-      color: var(--add-text);
-      background: var(--add-bg);
-      font-size: 14px;
-      font-weight: 500;
+      grid-column: 1 / 5;
+      padding: 3rem; text-align: center;
+      color: var(--add-text); font-size: 14px;
+      font-family: 'Inter', sans-serif;
     }
 
-    .error-msg {
-      padding: 1rem 1.5rem;
-      background: var(--del-bg);
-      color: var(--del-text);
-      border-radius: var(--radius);
-      font-size: 14px;
-      margin-bottom: 1rem;
-    }
-
-    @media (max-width: 680px) {
+    @media (max-width: 640px) {
       .upload-grid { grid-template-columns: 1fr; }
-      .diff-legend { display: none; }
+      .legend { display: none; }
     }
   </style>
 </head>
@@ -409,314 +333,351 @@
     <div class="logo-icon">≠</div>
     ContractDiff
   </div>
-  <span class="badge">PDF Comparison</span>
+  <div class="header-right">
+    <span class="badge">Side-by-Side PDF Comparison</span>
+    <button class="btn-secondary" id="backBtn" onclick="goBack()" style="display:none;padding:6px 14px;font-size:13px;">← New Comparison</button>
+  </div>
 </header>
 
-<main>
-  <div class="page-title">PDF Contract Comparison</div>
-  <div class="page-sub">Upload two PDF contracts — see every word that was added, removed, or changed.</div>
+<!-- ── UPLOAD SCREEN ── -->
+<div id="uploadScreen">
+  <div class="page-title">Compare Two Contract PDFs</div>
+  <div class="page-sub">Upload both versions — every addition, deletion, and modification shown side by side with word-level precision.</div>
 
   <div class="upload-grid">
-    <!-- V1 -->
-    <div class="upload-zone" id="zone1" ondragover="handleDrag(event,'zone1')" ondragleave="clearDrag('zone1')" ondrop="handleDrop(event,1)">
-      <input type="file" accept=".pdf" onchange="handleFile(event,1)"/>
-      <div class="upload-icon-wrap">
-        <div class="upload-version v1-badge">VERSION 1 — ORIGINAL</div>
+    <div class="upload-zone" id="zone1" ondragover="drag(event,'zone1')" ondragleave="undrag('zone1')" ondrop="drop(event,1)">
+      <input type="file" accept=".pdf" onchange="pickFile(event,1)"/>
+      <div class="v-pill v1-pill">Version 1 — Original</div>
+      <div id="zone1-idle">
         <div class="upload-icon">📄</div>
-        <div class="upload-label">Drop PDF here or click to upload</div>
+        <div class="upload-label">Drop PDF or click to upload</div>
         <div class="upload-sub">Original contract</div>
       </div>
-      <div style="display:none" class="has-file-wrap">
-        <div class="upload-version v1-badge">VERSION 1 — ORIGINAL</div>
-        <div class="check-icon">✅</div>
-        <div class="file-name" id="fileName1"></div>
+      <div id="zone1-ready" style="display:none">
+        <div class="upload-icon">✅</div>
+        <div class="file-name" id="file1name"></div>
       </div>
     </div>
 
-    <!-- V2 -->
-    <div class="upload-zone" id="zone2" ondragover="handleDrag(event,'zone2')" ondragleave="clearDrag('zone2')" ondrop="handleDrop(event,2)">
-      <input type="file" accept=".pdf" onchange="handleFile(event,2)"/>
-      <div class="upload-icon-wrap">
-        <div class="upload-version v2-badge">VERSION 2 — REVISED</div>
+    <div class="upload-zone" id="zone2" ondragover="drag(event,'zone2')" ondragleave="undrag('zone2')" ondrop="drop(event,2)">
+      <input type="file" accept=".pdf" onchange="pickFile(event,2)"/>
+      <div class="v-pill v2-pill">Version 2 — Revised</div>
+      <div id="zone2-idle">
         <div class="upload-icon">📄</div>
-        <div class="upload-label">Drop PDF here or click to upload</div>
+        <div class="upload-label">Drop PDF or click to upload</div>
         <div class="upload-sub">Revised contract</div>
       </div>
-      <div style="display:none" class="has-file-wrap">
-        <div class="upload-version v2-badge">VERSION 2 — REVISED</div>
-        <div class="check-icon">✅</div>
-        <div class="file-name" id="fileName2"></div>
+      <div id="zone2-ready" style="display:none">
+        <div class="upload-icon">✅</div>
+        <div class="file-name" id="file2name"></div>
       </div>
     </div>
   </div>
 
   <div class="actions">
     <button class="btn-primary" id="compareBtn" onclick="runComparison()" disabled>
-      🔍 Compare PDFs
+      🔍 Compare Contracts
     </button>
     <button class="btn-secondary" onclick="clearAll()">Clear</button>
     <div class="loader" id="loader">
       <div class="spinner"></div>
-      Extracting text and computing diff...
+      Extracting text and computing diff…
     </div>
   </div>
-
   <div id="errorMsg"></div>
+</div>
 
-  <div class="stats-bar" id="statsBar">
-    <div class="stat-chip added"   id="statAdded"></div>
-    <div class="stat-chip removed" id="statRemoved"></div>
-    <div class="stat-chip changed" id="statChanged"></div>
-    <div class="stat-chip total"   id="statTotal"></div>
-  </div>
+<!-- ── DIFF SCREEN ── -->
+<div id="diffScreen">
 
-  <div class="diff-card" id="diffCard">
-    <div class="diff-header">
-      <div class="diff-header-left">Diff Result — word-level changes highlighted</div>
-      <div class="diff-legend">
-        <div class="legend-item">
-          <div class="legend-swatch" style="background:var(--add-bar)"></div> Added
-        </div>
-        <div class="legend-item">
-          <div class="legend-swatch" style="background:var(--del-bar)"></div> Removed
-        </div>
-        <div class="legend-item">
-          <div class="legend-swatch" style="background:#F59E0B"></div> Changed
-        </div>
+  <div class="diff-topbar">
+    <div class="stats-row">
+      <div class="stat-pill added"   id="stAdded"></div>
+      <div class="stat-pill removed" id="stRemoved"></div>
+      <div class="stat-pill changed" id="stChanged"></div>
+      <div class="stat-pill same"    id="stSame"></div>
+    </div>
+    <div class="topbar-right">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--del-bar)"></div>Removed</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--add-bar)"></div>Added</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--mod-bar)"></div>Modified</div>
       </div>
     </div>
-    <div class="diff-body" id="diffBody"></div>
   </div>
-</main>
+
+  <div class="col-headers">
+    <div class="col-header v1">
+      <div class="col-dot" style="background:var(--del-bar)"></div>
+      <span id="v1label">Version 1 — Original</span>
+    </div>
+    <div class="col-header v2">
+      <div class="col-dot" style="background:var(--add-bar)"></div>
+      <span id="v2label">Version 2 — Revised</span>
+    </div>
+  </div>
+
+  <div class="diff-body" id="diffBody"></div>
+</div>
 
 <script>
-  // Setup PDF.js worker
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  let pdfData = { 1: null, 2: null };
+  let files = { 1: null, 2: null };
+  const CONTEXT_LINES = 3; // lines of context around each change
 
-  // ─── FILE HANDLING ───────────────────────────────────────────────────────────
+  // ── FILE HANDLING ─────────────────────────────────────────────────────────
 
-  function handleFile(event, version) {
-    const file = event.target.files[0];
-    if (file) setFile(file, version);
+  function pickFile(e, v) { if (e.target.files[0]) setFile(e.target.files[0], v); }
+  function drop(e, v) {
+    e.preventDefault(); undrag('zone'+v);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type === 'application/pdf') setFile(f, v);
+  }
+  function drag(e, id) { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
+  function undrag(id) { document.getElementById(id).classList.remove('drag-over'); }
+
+  function setFile(file, v) {
+    files[v] = file;
+    document.getElementById('zone'+v).classList.add('has-file');
+    document.getElementById('zone'+v+'-idle').style.display = 'none';
+    document.getElementById('zone'+v+'-ready').style.display = 'block';
+    document.getElementById('file'+v+'name').textContent = file.name;
+    document.getElementById('compareBtn').disabled = !(files[1] && files[2]);
   }
 
-  function handleDrop(event, version) {
-    event.preventDefault();
-    clearDrag('zone' + version);
-    const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/pdf') setFile(file, version);
-  }
-
-  function handleDrag(event, zoneId) {
-    event.preventDefault();
-    document.getElementById(zoneId).classList.add('drag-over');
-  }
-
-  function clearDrag(zoneId) {
-    document.getElementById(zoneId).classList.remove('drag-over');
-  }
-
-  function setFile(file, version) {
-    pdfData[version] = file;
-    const zone = document.getElementById('zone' + version);
-    zone.classList.add('has-file');
-    zone.querySelector('.upload-icon-wrap').style.display = 'none';
-    zone.querySelector('.has-file-wrap').style.display = 'block';
-    document.getElementById('fileName' + version).textContent = file.name;
-    if (pdfData[1] && pdfData[2]) {
-      document.getElementById('compareBtn').disabled = false;
-    }
-  }
-
-  // ─── PDF TEXT EXTRACTION ─────────────────────────────────────────────────────
+  // ── PDF TEXT EXTRACTION ───────────────────────────────────────────────────
 
   async function extractText(file) {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const pages = [];
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const pageText = content.items.map(item => item.str).join(' ');
-      pages.push(pageText);
+      // Group items by approximate Y position to reconstruct lines
+      const items = content.items;
+      const lineMap = {};
+      items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if (!lineMap[y]) lineMap[y] = [];
+        lineMap[y].push(item.str);
+      });
+      const sortedYs = Object.keys(lineMap).map(Number).sort((a,b) => b - a);
+      sortedYs.forEach(y => { text += lineMap[y].join(' ') + '\n'; });
+      text += '\n';
     }
-    return pages.join('\n');
+    return text;
   }
 
-  // ─── LCS LINE DIFF ───────────────────────────────────────────────────────────
+  // ── LCS ──────────────────────────────────────────────────────────────────
 
   function lcsDiff(a, b) {
     const m = a.length, n = b.length;
-    const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+    const dp = Array.from({length: m+1}, () => new Int32Array(n+1));
     for (let i = 1; i <= m; i++)
       for (let j = 1; j <= n; j++)
-        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
-
-    const result = [];
+        dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    const res = [];
     let i = m, j = n;
     while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
-        result.unshift({ type: 'same', text: a[i-1] });
-        i--; j--;
-      } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
-        result.unshift({ type: 'added', text: b[j-1] });
-        j--;
-      } else {
-        result.unshift({ type: 'removed', text: a[i-1] });
-        i--;
-      }
+      if (i>0 && j>0 && a[i-1]===b[j-1]) { res.unshift({type:'same', l:a[i-1], r:b[j-1]}); i--; j--; }
+      else if (j>0 && (i===0 || dp[i][j-1]>=dp[i-1][j])) { res.unshift({type:'added', r:b[j-1]}); j--; }
+      else { res.unshift({type:'removed', l:a[i-1]}); i--; }
     }
-    return result;
+    return res;
   }
-
-  // ─── WORD-LEVEL DIFF ─────────────────────────────────────────────────────────
-
-  function wordDiff(oldLine, newLine) {
-    const oldWords = oldLine.split(/(\s+)/);
-    const newWords = newLine.split(/(\s+)/);
-    const diff = lcsDiff(oldWords, newWords);
-
-    let oldHtml = '', newHtml = '';
-    diff.forEach(d => {
-      const escaped = d.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      if (d.type === 'same')    { oldHtml += escaped; newHtml += escaped; }
-      if (d.type === 'removed') { oldHtml += `<span class="word-del">${escaped}</span>`; }
-      if (d.type === 'added')   { newHtml += `<span class="word-add">${escaped}</span>`; }
-    });
-    return { oldHtml, newHtml };
-  }
-
-  // ─── PAIR ADJACENT REMOVED/ADDED AS CHANGED ──────────────────────────────────
 
   function pairChanges(diff) {
-    const result = [];
+    const res = [];
     let i = 0;
     while (i < diff.length) {
-      if (
-        diff[i].type === 'removed' &&
-        i + 1 < diff.length &&
-        diff[i+1].type === 'added'
-      ) {
-        result.push({ type: 'changed', oldText: diff[i].text, newText: diff[i+1].text });
+      if (diff[i].type==='removed' && i+1<diff.length && diff[i+1].type==='added') {
+        res.push({type:'changed', l:diff[i].l, r:diff[i+1].r});
         i += 2;
-      } else {
-        result.push(diff[i]);
-        i++;
-      }
+      } else { res.push(diff[i]); i++; }
     }
-    return result;
+    return res;
   }
 
-  // ─── RENDER ──────────────────────────────────────────────────────────────────
+  // ── WORD DIFF ─────────────────────────────────────────────────────────────
 
-  function makeLine(cls, prefix, contentHtml, lineNum) {
-    return `
-      <div class="diff-line ${cls}">
-        <div class="line-num">${lineNum !== null ? lineNum : ''}</div>
-        <div class="line-prefix">${prefix}</div>
-        <div class="line-text">${contentHtml}</div>
-      </div>`;
+  function wordDiff(old, nw) {
+    const ow = old.split(/(\s+)/), nw2 = nw.split(/(\s+)/);
+    const d = lcsDiff(ow, nw2);
+    let lH='', rH='';
+    d.forEach(e => {
+      const t = esc(e.l||e.r||'');
+      if (e.type==='same')    { lH+=t; rH+=t; }
+      if (e.type==='removed') { lH+=`<span class="w-del">${esc(e.l)}</span>`; }
+      if (e.type==='added')   { rH+=`<span class="w-add">${esc(e.r)}</span>`; }
+      if (e.type==='changed') { lH+=`<span class="w-del">${esc(e.l)}</span>`; rH+=`<span class="w-add">${esc(e.r)}</span>`; }
+    });
+    return {lH, rH};
   }
 
-  function escape(text) {
-    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function esc(t) {
+    return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ─── MAIN COMPARISON ─────────────────────────────────────────────────────────
+  // ── RENDER ────────────────────────────────────────────────────────────────
+
+  function makeRow(cls, lNum, lHtml, rNum, rHtml) {
+    return `<div class="diff-row ${cls}">
+      <div class="cell-num left-num">${lNum!==null?lNum:''}</div>
+      <div class="cell-text left-text">${lHtml}</div>
+      <div class="cell-num right-num">${rNum!==null?rNum:''}</div>
+      <div class="cell-text right-text">${rHtml}</div>
+    </div>`;
+  }
+
+  function makeDivider(msg) {
+    return `<div class="diff-row divider"><div class="divider-cell">${msg}</div></div>`;
+  }
+
+  // ── MAIN ─────────────────────────────────────────────────────────────────
 
   async function runComparison() {
-    const errorEl = document.getElementById('errorMsg');
-    errorEl.innerHTML = '';
-
+    document.getElementById('errorMsg').innerHTML = '';
     document.getElementById('loader').classList.add('visible');
     document.getElementById('compareBtn').disabled = true;
-    document.getElementById('diffCard').classList.remove('visible');
-    document.getElementById('statsBar').classList.remove('visible');
 
     try {
-      const [text1, text2] = await Promise.all([
-        extractText(pdfData[1]),
-        extractText(pdfData[2])
-      ]);
+      const [t1, t2] = await Promise.all([extractText(files[1]), extractText(files[2])]);
 
-      const lines1 = text1.split('\n').map(l => l.trim()).filter(l => l);
-      const lines2 = text2.split('\n').map(l => l.trim()).filter(l => l);
+      const lines1 = t1.split('\n').map(l=>l.trim());
+      const lines2 = t2.split('\n').map(l=>l.trim());
 
       const rawDiff = lcsDiff(lines1, lines2);
-      const diff = pairChanges(rawDiff);
+      const diff    = pairChanges(rawDiff);
 
-      const diffBody = document.getElementById('diffBody');
-      diffBody.innerHTML = '';
+      // Count stats
+      let added=0, removed=0, changed=0, same=0;
+      diff.forEach(d => {
+        if (d.type==='same')    same++;
+        if (d.type==='added')   added++;
+        if (d.type==='removed') removed++;
+        if (d.type==='changed') changed++;
+      });
 
-      if (diff.every(d => d.type === 'same')) {
-        diffBody.innerHTML = '<div class="no-changes">✓ No changes detected — both contracts are identical.</div>';
-        document.getElementById('diffCard').classList.add('visible');
+      document.getElementById('stAdded').textContent   = `+ ${added} added`;
+      document.getElementById('stRemoved').textContent = `− ${removed} removed`;
+      document.getElementById('stChanged').textContent = `~ ${changed} modified`;
+      document.getElementById('stSame').textContent    = `${same} unchanged`;
+      document.getElementById('v1label').textContent   = files[1].name;
+      document.getElementById('v2label').textContent   = files[2].name;
+
+      // Build HTML with context collapsing
+      const body = document.getElementById('diffBody');
+      let html = '';
+
+      if (diff.every(d=>d.type==='same')) {
+        html = `<div class="diff-row"><div class="no-changes">✓ No differences found — both contracts are identical.</div></div>`;
+        body.innerHTML = html;
+        showDiff();
         return;
       }
 
-      let added = 0, removed = 0, changed = 0, lineNum = 0;
-      let html = '';
-
-      diff.forEach(entry => {
-        if (entry.type === 'same') {
-          lineNum++;
-          html += makeLine('same', ' ', escape(entry.text), lineNum);
-        } else if (entry.type === 'added') {
-          lineNum++;
-          added++;
-          html += makeLine('added', '+', escape(entry.text), lineNum);
-        } else if (entry.type === 'removed') {
-          removed++;
-          html += makeLine('removed', '−', escape(entry.text), null);
-        } else if (entry.type === 'changed') {
-          changed++;
-          lineNum++;
-          const { oldHtml, newHtml } = wordDiff(entry.oldText, entry.newText);
-          html += makeLine('changed-old', '−', oldHtml, null);
-          html += makeLine('changed-new', '+', newHtml, lineNum);
+      let lNum=0, rNum=0;
+      // Mark which lines are "near a change" for context
+      const nearChange = new Array(diff.length).fill(false);
+      diff.forEach((d,i) => {
+        if (d.type !== 'same') {
+          for (let k=Math.max(0,i-CONTEXT_LINES); k<=Math.min(diff.length-1,i+CONTEXT_LINES); k++)
+            nearChange[k] = true;
         }
       });
 
-      diffBody.innerHTML = html;
+      let skipping = false;
+      let skipStart = 0;
 
-      document.getElementById('statAdded').textContent   = `+${added} line${added !== 1 ? 's' : ''} added`;
-      document.getElementById('statRemoved').textContent = `−${removed} line${removed !== 1 ? 's' : ''} removed`;
-      document.getElementById('statChanged').textContent = `~ ${changed} line${changed !== 1 ? 's' : ''} modified`;
-      document.getElementById('statTotal').textContent   = `${lines1.length} → ${lines2.length} lines`;
+      diff.forEach((d, i) => {
+        if (d.type === 'same') {
+          if (nearChange[i]) {
+            if (skipping) {
+              const skipped = i - skipStart;
+              if (skipped > 0) html += makeDivider(`↕ ${skipped} unchanged line${skipped!==1?'s':''} hidden`);
+              skipping = false;
+            }
+            lNum++; rNum++;
+            html += makeRow('row-same', lNum, esc(d.l), rNum, esc(d.r));
+          } else {
+            if (!skipping) { skipping = true; skipStart = i; }
+            lNum++; rNum++;
+          }
 
-      document.getElementById('statsBar').classList.add('visible');
-      document.getElementById('diffCard').classList.add('visible');
-      document.getElementById('diffCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else if (d.type === 'added') {
+          if (skipping) {
+            const skipped = i - skipStart;
+            if (skipped > 0) html += makeDivider(`↕ ${skipped} unchanged line${skipped!==1?'s':''} hidden`);
+            skipping = false;
+          }
+          rNum++;
+          html += makeRow('row-added', null, '', rNum, esc(d.r));
 
-    } catch (err) {
-      errorEl.innerHTML = `<div class="error-msg">⚠️ Could not read one or both PDFs. Make sure they are not password-protected. (${err.message})</div>`;
+        } else if (d.type === 'removed') {
+          if (skipping) {
+            const skipped = i - skipStart;
+            if (skipped > 0) html += makeDivider(`↕ ${skipped} unchanged line${skipped!==1?'s':''} hidden`);
+            skipping = false;
+          }
+          lNum++;
+          html += makeRow('row-removed', lNum, esc(d.l), null, '');
+
+        } else if (d.type === 'changed') {
+          if (skipping) {
+            const skipped = i - skipStart;
+            if (skipped > 0) html += makeDivider(`↕ ${skipped} unchanged line${skipped!==1?'s':''} hidden`);
+            skipping = false;
+          }
+          lNum++; rNum++;
+          const {lH, rH} = wordDiff(d.l, d.r);
+          html += makeRow('row-changed', lNum, lH, rNum, rH);
+        }
+      });
+
+      if (skipping) {
+        const skipped = diff.length - skipStart;
+        if (skipped > 0) html += makeDivider(`↕ ${skipped} unchanged line${skipped!==1?'s':''} hidden`);
+      }
+
+      body.innerHTML = html;
+      showDiff();
+
+    } catch(err) {
+      document.getElementById('errorMsg').innerHTML =
+        `<div class="error-msg">⚠️ Could not read one or both PDFs. Make sure they are not password-protected.<br><small>${err.message}</small></div>`;
     } finally {
       document.getElementById('loader').classList.remove('visible');
       document.getElementById('compareBtn').disabled = false;
     }
   }
 
-  // ─── CLEAR ───────────────────────────────────────────────────────────────────
+  function showDiff() {
+    document.getElementById('uploadScreen').style.display = 'none';
+    document.getElementById('diffScreen').classList.add('visible');
+    document.getElementById('backBtn').style.display = 'block';
+  }
+
+  function goBack() {
+    document.getElementById('uploadScreen').style.display = 'block';
+    document.getElementById('diffScreen').classList.remove('visible');
+    document.getElementById('backBtn').style.display = 'none';
+  }
 
   function clearAll() {
-    pdfData = { 1: null, 2: null };
-    ['1','2'].forEach(v => {
-      const zone = document.getElementById('zone' + v);
-      zone.classList.remove('has-file');
-      zone.querySelector('.upload-icon-wrap').style.display = 'block';
-      zone.querySelector('.has-file-wrap').style.display = 'none';
-      document.getElementById('fileName' + v).textContent = '';
-      zone.querySelector('input').value = '';
+    files = {1:null, 2:null};
+    [1,2].forEach(v => {
+      document.getElementById('zone'+v).classList.remove('has-file');
+      document.getElementById('zone'+v+'-idle').style.display = 'block';
+      document.getElementById('zone'+v+'-ready').style.display = 'none';
+      document.getElementById('file'+v+'name').textContent = '';
+      document.getElementById('zone'+v).querySelector('input').value = '';
     });
     document.getElementById('compareBtn').disabled = true;
-    document.getElementById('diffCard').classList.remove('visible');
-    document.getElementById('statsBar').classList.remove('visible');
     document.getElementById('errorMsg').innerHTML = '';
   }
 </script>
-
 </body>
 </html>
